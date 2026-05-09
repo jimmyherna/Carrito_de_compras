@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda UMG - Pro</title>
+    <style>
+        :root { --primary: #004a99; --bg: #f8f9fa; --dark: #1a1a1a; --accent: #e67e22; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; color: #333; }
+        header { background: white; padding: 1rem 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.25rem; color: var(--primary); cursor: pointer; user-select: none; }
+        
+        .container { max-width: 1200px; margin: 2rem auto; display: grid; grid-template-columns: 1fr 380px; gap: 2rem; padding: 0 1rem; }
+        .grid-productos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+        
+        /* Cards Tienda */
+        .producto-card { background: white; border-radius: 15px; padding: 1.5rem; box-shadow: 0 10px 15px rgba(0,0,0,0.05); border: 1px solid #eee; text-align: center; }
+        .producto-nombre { font-weight: bold; font-size: 1.1rem; display: block; margin-bottom: 5px; text-transform: capitalize; }
+        .producto-precio { color: var(--primary); font-size: 1.25rem; font-weight: 800; display: block; margin-bottom: 10px; }
+        .btn-add-action { width: 100%; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        /* Carrito */
+        .carrito-container { background: white; border-radius: 20px; padding: 1.5rem; position: sticky; top: 2rem; box-shadow: 0 20px 25px rgba(0,0,0,0.1); }
+        .carrito-item { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.9rem; }
+        .btn-confirmar { width: 100%; background: var(--dark); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 1rem; }
+
+        /* MODAL FACTURA */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .modal-content { background: white; margin: 5% auto; padding: 2rem; width: 400px; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+        .factura-header { text-align: center; border-bottom: 2px dashed #eee; padding-bottom: 1rem; margin-bottom: 1rem; }
+        .factura-linea { display: flex; justify-content: space-between; margin-bottom: 8px; font-family: monospace; }
+        
+        /* ADMIN PANEL (Oculto) */
+        #panel-admin { display: none; background: #fff; border: 2px solid var(--primary); margin-bottom: 2rem; padding: 1.5rem; border-radius: 15px; }
+        .admin-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        .admin-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 10px; }
+        .admin-table td, .admin-table th { padding: 8px; border: 1px solid #eee; text-align: left; }
+        .input-mini { width: 60px; padding: 5px; border-radius: 4px; border: 1px solid #ddd; }
+        .btn-surtir { background: var(--accent); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1 id="title-admin">Tienda UMG</h1>
+    <div id="cart-count" style="background: var(--primary); color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem;">0 Items</div>
+</header>
+
+<div class="container">
+    <main>
+        <section id="panel-admin">
+            <div class="admin-section">
+                <h3 style="color: var(--primary); margin-top: 0;">1. Registrar Nuevo Producto</h3>
+                <form id="form-stock" style="display: flex; gap: 10px;">
+                    <input type="text" id="adm-nombre" placeholder="Nombre" required style="flex:2; padding: 8px;">
+                    <input type="number" step="0.01" id="adm-precio" placeholder="Precio" required style="flex:1; padding: 8px;">
+                    <input type="number" id="adm-stock" placeholder="Stock" required style="flex:1; padding: 8px;">
+                    <button type="submit" style="background:var(--primary); color:white; border:none; border-radius:5px; padding: 0 15px; cursor:pointer;">Crear</button>
+                </form>
+            </div>
+
+            <div class="admin-section" style="border-bottom:none;">
+                <h3 style="color: var(--accent); margin-top: 0;">2. Reabastecer Stock Existente</h3>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Stock Actual</th>
+                            <th>Añadir Cantidad</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-admin-stock">
+                        </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="grid-productos" id="grid-productos"></div>
+    </main>
+
+    <aside>
+        <div class="carrito-container">
+            <h2 style="margin-top:0">Mi Pedido</h2>
+            <div id="items-carrito"></div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.2rem; margin-top:20px; border-top:2px solid #f8f9fa; padding-top:15px;">
+                <span>Total</span>
+                <span id="total-val">Q0.00</span>
+            </div>
+            <button class="btn-confirmar" onclick="mostrarFactura()">Confirmar Pedido</button>
+        </div>
+    </aside>
+</div>
+
+<div id="modalFactura" class="modal">
+    <div class="modal-content">
+        <div class="factura-header">
+            <h2 style="margin:0">FACTURA</h2>
+            <small>Universidad Mariano Gálvez</small><br>
+            <small id="fecha-factura"></small>
+        </div>
+        <div id="detalle-factura"></div>
+        <div style="border-top: 2px dashed #eee; margin-top: 1rem; padding-top: 1rem;">
+            <div class="factura-linea" style="font-weight: bold; font-size: 1.2rem;">
+                <span>TOTAL</span>
+                <span id="total-factura"></span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 2rem;">
+            <button onclick="cerrarModal()" style="flex:1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; cursor:pointer;">Cancelar</button>
+            <button onclick="procesarPago()" style="flex:2; padding: 12px; border-radius: 8px; border: none; background: var(--primary); color:white; font-weight:bold; cursor:pointer;">Pagar y Finalizar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'http://localhost:8080/api/productos';
+    let carrito = [];
+
+    // Secreto: Doble clic en el título
+    document.getElementById('title-admin').ondblclick = () => {
+        const p = document.getElementById('panel-admin');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+        if(p.style.display === 'block') cargarListaAdmin();
+    };
+
+    async function cargarProductos() {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        
+        // Render Tienda
+        const grid = document.getElementById('grid-productos');
+        grid.innerHTML = data.map(p => `
+            <div class="producto-card">
+                <span class="producto-nombre">${p.nombre}</span>
+                <span class="producto-precio">Q${p.precio.toFixed(2)}</span>
+                <span style="font-size:0.8rem; color:${p.stock <= 0 ? 'red' : '#888'};">
+                    ${p.stock <= 0 ? '¡SIN STOCK!' : 'Disponibles: ' + p.stock}
+                </span><br><br>
+                <button class="btn-add-action" onclick="addToCart(${p.id}, '${p.nombre}', ${p.precio})" ${p.stock <= 0 ? 'disabled' : ''}>
+                    ${p.stock <= 0 ? 'Agotado' : 'Agregar'}
+                </button>
+            </div>
+        `).join('');
+
+        // Actualizar tabla admin si está abierta
+        if(document.getElementById('panel-admin').style.display === 'block') cargarListaAdmin(data);
+    }
+
+    async function cargarListaAdmin(dataOriginal) {
+        const data = dataOriginal || await (await fetch(API_URL)).json();
+        const tbody = document.getElementById('lista-admin-stock');
+        tbody.innerHTML = data.map(p => `
+            <tr>
+                <td>${p.nombre}</td>
+                <td><strong>${p.stock}</strong></td>
+                <td><input type="number" id="surtir-${p.id}" class="input-mini" value="10"></td>
+                <td><button class="btn-surtir" onclick="surtirStock(${p.id})">Añadir</button></td>
+            </tr>
+        `).join('');
+    }
+
+    // FUNCIÓN CLAVE: SUMAR STOCK AL EXISTENTE
+    async function surtirStock(id) {
+        const cantidad = document.getElementById(`surtir-${id}`).value;
+        if(cantidad <= 0) return;
+
+        // Usamos un loop para llamar a tu API actual de compra pero al revés? 
+        // No, mejor enviamos el stock. Si tu API solo tiene "comprar", 
+        // tendrías que tener un endpoint que reciba la nueva cantidad. 
+        // Para este ejemplo, simularé que enviamos la actualización:
+        
+        const res = await fetch(`${API_URL}/${id}`);
+        const prod = await res.json();
+        
+        const actualizado = {
+            ...prod,
+            stock: prod.stock + parseInt(cantidad)
+        };
+
+        await fetch(API_URL, {
+            method: 'POST', // En Spring Data JPA, un POST/Save con ID existente hace un UPDATE
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(actualizado)
+        });
+
+        alert(`Stock de ${prod.nombre} actualizado (+${cantidad})`);
+        cargarProductos();
+    }
+
+    function addToCart(id, nombre, precio) {
+        const found = carrito.find(i => i.id === id);
+        if (found) found.qty++;
+        else carrito.push({ id, nombre, precio, qty: 1 });
+        renderCarrito();
+    }
+
+    function renderCarrito() {
+        const div = document.getElementById('items-carrito');
+        let total = 0;
+        if (carrito.length === 0) {
+            div.innerHTML = '<p style="text-align:center; color:#999;">Selecciona productos</p>';
+        } else {
+            div.innerHTML = carrito.map(item => {
+                total += item.precio * item.qty;
+                return `<div class="carrito-item">
+                    <span>${item.qty}x ${item.nombre}</span>
+                    <span>Q${(item.precio * item.qty).toFixed(2)}</span>
+                </div>`;
+            }).join('');
+        }
+        document.getElementById('total-val').innerText = `Q${total.toFixed(2)}`;
+        document.getElementById('cart-count').innerText = `${carrito.length} Items`;
+    }
+
+    function mostrarFactura() {
+        if (carrito.length === 0) return alert("El carrito está vacío");
+        const detalle = document.getElementById('detalle-factura');
+        let total = 0;
+        detalle.innerHTML = carrito.map(item => {
+            total += item.precio * item.qty;
+            return `<div class="factura-linea">
+                <span>${item.qty} ${item.nombre.padEnd(15, '.')}</span>
+                <span>Q${(item.precio * item.qty).toFixed(2)}</span>
+            </div>`;
+        }).join('');
+        document.getElementById('total-factura').innerText = `Q${total.toFixed(2)}`;
+        document.getElementById('fecha-factura').innerText = new Date().toLocaleString();
+        document.getElementById('modalFactura').style.display = 'block';
+    }
+
+    function cerrarModal() { document.getElementById('modalFactura').style.display = 'none'; }
+
+    async function procesarPago() {
+        for (let item of carrito) {
+            for(let i=0; i < item.qty; i++) {
+                await fetch(`${API_URL}/${item.id}/comprar`, { method: 'PUT' });
+            }
+        }
+        alert("Pago procesado. ¡Gracias por tu compra!");
+        carrito = [];
+        cerrarModal();
+        renderCarrito();
+        cargarProductos();
+    }
+
+    document.getElementById('form-stock').onsubmit = async (e) => {
+        e.preventDefault();
+        const p = {
+            nombre: document.getElementById('adm-nombre').value,
+            precio: parseFloat(document.getElementById('adm-precio').value),
+            stock: parseInt(document.getElementById('adm-stock').value)
+        };
+        await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(p)
+        });
+        e.target.reset();
+        cargarProductos();
+    };
+
+    cargarProductos();
+</script>
+</body>
+</html>
